@@ -42,11 +42,101 @@ st.markdown("""
 def initialize_session_state():
     """Initialize session state variables"""
     if 'uploaded_resumes' not in st.session_state:
-        st.session_state.uploaded_resumes = []
+        st.session_state.uploaded_resumes = load_resumes_from_database()
     if 'screening_results' not in st.session_state:
-        st.session_state.screening_results = []
+        st.session_state.screening_results = load_screening_results_from_database()
     if 'current_criteria' not in st.session_state:
         st.session_state.current_criteria = {}
+
+def load_resumes_from_database():
+    """Load all resumes from database"""
+    try:
+        if db_manager is None:
+            return []
+        
+        resumes = db_manager.get_all_resumes()
+        resume_list = []
+        
+        for resume in resumes:
+            resume_list.append({
+                'id': resume.id,
+                'filename': resume.filename,
+                'text': resume.original_text,
+                'word_count': len(resume.original_text.split()) if resume.original_text else 0,
+                'file_type': resume.file_type,
+                'upload_date': resume.upload_date
+            })
+        
+        return resume_list
+    except Exception as e:
+        st.error(f"Error loading resumes from database: {str(e)}")
+        return []
+
+def load_screening_results_from_database():
+    """Load screening results from database"""
+    try:
+        if db_manager is None:
+            return []
+        
+        results = db_manager.get_screening_results()
+        result_list = []
+        
+        for result, resume in results:
+            # Parse JSON if stored as string
+            detailed_analysis = result.detailed_analysis
+            if isinstance(detailed_analysis, str):
+                import json
+                detailed_analysis = json.loads(detailed_analysis)
+            
+            result_list.append({
+                'resume_id': result.resume_id,
+                'filename': resume.filename,
+                'analysis_result': {
+                    'overall_score': result.overall_score,
+                    'category': result.category,
+                    'detailed_analysis': detailed_analysis
+                }
+            })
+        
+        return result_list
+    except Exception as e:
+        st.error(f"Error loading screening results from database: {str(e)}")
+        return []
+
+def load_criteria_from_database():
+    """Load all screening criteria from database"""
+    try:
+        if db_manager is None:
+            return []
+        
+        session = db_manager.get_session()
+        try:
+            from database import ScreeningCriteria
+            criteria_list = session.query(ScreeningCriteria).order_by(ScreeningCriteria.created_date.desc()).all()
+            
+            result = []
+            for criteria in criteria_list:
+                # Parse JSON if stored as string
+                criteria_json = criteria.criteria_json
+                if isinstance(criteria_json, str):
+                    import json
+                    criteria_json = json.loads(criteria_json)
+                
+                result.append({
+                    'id': criteria.id,
+                    'name': criteria.name,
+                    'description': criteria.description,
+                    'criteria': criteria_json,
+                    'created_date': criteria.created_date
+                })
+            
+            return result
+        finally:
+            session.close()
+            
+    except Exception as e:
+        st.error(f"Error loading criteria from database: {str(e)}")
+        return []
 
 def validate_environment():
     """Validate environment configuration"""
@@ -183,9 +273,44 @@ def upload_resumes_page():
         )
 
 def set_criteria_page():
-    """Screening criteria configuration page"""
-    st.markdown('<h1 class="main-header">⚙️ Set Screening Criteria</h1>', unsafe_allow_html=True)
+    """Criteria setting page"""
+    st.markdown('<h1 class="main-header">📋 Set Screening Criteria</h1>', unsafe_allow_html=True)
     
+    # Load saved criteria section
+    st.subheader("📚 Previously Saved Criteria")
+    saved_criteria = load_criteria_from_database()
+    
+    if saved_criteria:
+        col1, col2 = st.columns([3, 1])
+        with col1:
+            selected_criteria = st.selectbox(
+                "Load Previously Saved Criteria:",
+                options=[None] + saved_criteria,
+                format_func=lambda x: "Select saved criteria..." if x is None else f"{x['name']} ({x['created_date'].strftime('%Y-%m-%d')})",
+                help="Choose from previously saved screening criteria"
+            )
+        
+        with col2:
+            if st.button("🔄 Refresh Criteria"):
+                st.rerun()
+        
+        if selected_criteria:
+            if st.button(f"📥 Load '{selected_criteria['name']}'"):
+                st.session_state.current_criteria = selected_criteria['criteria']
+                st.success(f"✅ Loaded criteria: {selected_criteria['name']}")
+                st.rerun()
+    else:
+        st.info("No saved criteria found. Create new criteria below.")
+    
+    st.divider()
+    
+    # Role selection
+    role_type = st.selectbox(
+        "Select Role Type:",
+        ["Technical", "Management", "Sales", "Custom"],
+        help="Choose a role type to get pre-defined criteria templates"
+    )
+
     # Criteria templates
     st.subheader("📋 Quick Templates")
     
@@ -289,6 +414,13 @@ def set_criteria_page():
 def screen_resumes_page():
     """Resume screening page"""
     st.markdown('<h1 class="main-header">🔍 Screen Resumes</h1>', unsafe_allow_html=True)
+    
+    # Add refresh button
+    col1, col2 = st.columns([3, 1])
+    with col2:
+        if st.button("🔄 Refresh from Database"):
+            st.session_state.uploaded_resumes = load_resumes_from_database()
+            st.rerun()
     
     # Check prerequisites
     if not st.session_state.uploaded_resumes:
