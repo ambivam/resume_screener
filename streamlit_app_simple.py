@@ -384,14 +384,89 @@ def upload_resumes_page():
             else:
                 st.warning("No files were successfully processed. Please check the files and try again.")
     
-    # Show existing uploads
+    # Show existing uploads with delete functionality
     if st.session_state.uploaded_resumes:
         st.subheader("📚 Previously Uploaded Resumes")
+        
+        # Add delete controls
+        col1, col2, col3 = st.columns([2, 1, 1])
+        with col1:
+            st.write("**Manage your uploaded resumes:**")
+        with col2:
+            if st.button("🔄 Refresh List", help="Reload resumes from database"):
+                st.session_state.uploaded_resumes = load_resumes_from_database()
+                st.rerun()
+        with col3:
+            show_delete_options = st.checkbox("🗑️ Delete Mode", help="Enable delete options")
+        
         df = pd.DataFrame(st.session_state.uploaded_resumes)
+        
+        if show_delete_options:
+            st.warning("⚠️ Delete Mode Active - Select resumes to delete")
+            
+            # Multi-select for deletion
+            resume_options = {}
+            for resume in st.session_state.uploaded_resumes:
+                key = f"{resume['filename']} (ID: {resume['id']}) - {resume['upload_date'].strftime('%Y-%m-%d %H:%M')}"
+                resume_options[key] = resume
+            
+            selected_for_deletion = st.multiselect(
+                "Select resumes to delete:",
+                options=list(resume_options.keys()),
+                help="Choose one or more resumes to delete permanently"
+            )
+            
+            if selected_for_deletion:
+                st.error(f"⚠️ You are about to delete {len(selected_for_deletion)} resume(s). This action cannot be undone!")
+                
+                # Show selected files
+                st.write("**Files to be deleted:**")
+                for key in selected_for_deletion:
+                    resume = resume_options[key]
+                    st.write(f"• {resume['filename']} (uploaded: {resume['upload_date'].strftime('%Y-%m-%d %H:%M')})")
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    if st.button("🗑️ Confirm Delete", type="primary", use_container_width=True):
+                        # Get resume IDs to delete
+                        resume_ids_to_delete = [resume_options[key]['id'] for key in selected_for_deletion]
+                        
+                        # Delete from database
+                        success, message = db_manager.delete_multiple_resumes(resume_ids_to_delete)
+                        
+                        if success:
+                            # Update session state
+                            st.session_state.uploaded_resumes = [
+                                resume for resume in st.session_state.uploaded_resumes 
+                                if resume['id'] not in resume_ids_to_delete
+                            ]
+                            # Also update screening results
+                            st.session_state.screening_results = [
+                                result for result in st.session_state.screening_results 
+                                if result['resume_id'] not in resume_ids_to_delete
+                            ]
+                            st.success(f"✅ {message}")
+                            st.rerun()
+                        else:
+                            st.error(f"❌ {message}")
+                
+                with col2:
+                    if st.button("❌ Cancel", use_container_width=True):
+                        st.rerun()
+        
+        # Display resumes table
+        display_columns = ['filename', 'word_count', 'file_type', 'upload_date']
+        if 'source' in df.columns:
+            display_columns.append('source')
+        
         st.dataframe(
-            df[['filename', 'word_count', 'file_type', 'upload_date']],
+            df[display_columns],
             use_container_width=True
         )
+        
+        # Quick delete individual resumes
+        if not show_delete_options:
+            st.markdown("💡 **Tip:** Enable 'Delete Mode' above to remove unwanted resumes")
 
 def set_criteria_page():
     """Criteria setting page"""

@@ -127,6 +127,50 @@ class DatabaseManager:
         finally:
             session.close()
     
+    def delete_resume(self, resume_id):
+        """Delete a resume and its associated screening results"""
+        session = self.get_session()
+        try:
+            # First delete associated screening results
+            session.query(ScreeningResult).filter(ScreeningResult.resume_id == resume_id).delete()
+            
+            # Then delete the resume
+            resume = session.query(Resume).filter(Resume.id == resume_id).first()
+            if resume:
+                session.delete(resume)
+                session.commit()
+                return True, f"Resume '{resume.filename}' deleted successfully"
+            else:
+                return False, "Resume not found"
+        except Exception as e:
+            session.rollback()
+            return False, f"Error deleting resume: {str(e)}"
+        finally:
+            session.close()
+    
+    def delete_multiple_resumes(self, resume_ids):
+        """Delete multiple resumes and their associated screening results"""
+        session = self.get_session()
+        try:
+            deleted_count = 0
+            for resume_id in resume_ids:
+                # Delete associated screening results
+                session.query(ScreeningResult).filter(ScreeningResult.resume_id == resume_id).delete()
+                
+                # Delete the resume
+                resume = session.query(Resume).filter(Resume.id == resume_id).first()
+                if resume:
+                    session.delete(resume)
+                    deleted_count += 1
+            
+            session.commit()
+            return True, f"Successfully deleted {deleted_count} resume(s)"
+        except Exception as e:
+            session.rollback()
+            return False, f"Error deleting resumes: {str(e)}"
+        finally:
+            session.close()
+    
     def test_connection(self):
         """Test database connection"""
         try:
