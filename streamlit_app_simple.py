@@ -49,6 +49,14 @@ def initialize_session_state():
         st.session_state.screening_results = load_screening_results_from_database()
     if 'current_criteria' not in st.session_state:
         st.session_state.current_criteria = {}
+    
+    # Note: Auto-refresh removed to prevent infinite loops
+    # Users can manually refresh using the Clear Cache button
+
+def refresh_session_data():
+    """Refresh session state data from database"""
+    st.session_state.uploaded_resumes = load_resumes_from_database()
+    st.session_state.screening_results = load_screening_results_from_database()
 
 def load_resumes_from_database():
     """Load all resumes from database"""
@@ -435,16 +443,8 @@ def upload_resumes_page():
                         success, message = db_manager.delete_multiple_resumes(resume_ids_to_delete)
                         
                         if success:
-                            # Update session state
-                            st.session_state.uploaded_resumes = [
-                                resume for resume in st.session_state.uploaded_resumes 
-                                if resume['id'] not in resume_ids_to_delete
-                            ]
-                            # Also update screening results
-                            st.session_state.screening_results = [
-                                result for result in st.session_state.screening_results 
-                                if result['resume_id'] not in resume_ids_to_delete
-                            ]
+                            # Refresh session state from database to ensure consistency
+                            refresh_session_data()
                             st.success(f"✅ {message}")
                             st.rerun()
                         else:
@@ -732,6 +732,58 @@ def view_results_page():
     """Results viewing page"""
     st.markdown('<h1 class="main-header">📊 View Results</h1>', unsafe_allow_html=True)
     
+    # Check for stale session data and show warning
+    if (len(st.session_state.screening_results) > len(st.session_state.uploaded_resumes) * 2):
+        st.warning("⚠️ Detected stale session data. Click 'Clear Cache' to fix this issue.")
+    
+    # Add refresh button to sync with database
+    col1, col2, col3, col4, col5 = st.columns([1, 1, 1, 1, 1])
+    with col2:
+        if st.button("🔄 Refresh Data", help="Refresh results from database"):
+            refresh_session_data()
+            st.rerun()
+    with col3:
+        if st.button("🗑️ Clear Cache", help="Clear all cached data and reload"):
+            # Clear all session state
+            for key in list(st.session_state.keys()):
+                del st.session_state[key]
+            # Force cleanup of orphaned results before reloading
+            if db_manager:
+                db_manager.cleanup_orphaned_results()
+            st.rerun()
+    with col4:
+        if st.button("🧹 Cleanup DB", help="Remove orphaned screening results"):
+            if db_manager:
+                with st.spinner("Cleaning up database..."):
+                    success, message = db_manager.cleanup_orphaned_results()
+                if success:
+                    st.success(f"✅ {message}")
+                    # Don't auto-refresh immediately, let user see the message
+                    if st.button("🔄 Refresh After Cleanup"):
+                        refresh_session_data()
+                        st.rerun()
+                else:
+                    st.error(f"❌ {message}")
+    with col5:
+        if st.button("💥 Nuclear Reset", help="Delete ALL screening results and start fresh", type="secondary"):
+            if st.button("⚠️ Confirm Nuclear Reset", help="This will delete ALL screening results!"):
+                if db_manager:
+                    try:
+                        from database import ScreeningResult
+                        session = db_manager.get_session()
+                        deleted_count = session.query(ScreeningResult).delete()
+                        session.commit()
+                        session.close()
+                        
+                        # Clear session state
+                        for key in list(st.session_state.keys()):
+                            del st.session_state[key]
+                        
+                        st.success(f"✅ Nuclear reset complete! Deleted {deleted_count} screening results.")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"❌ Nuclear reset failed: {str(e)}")
+    
     if not st.session_state.screening_results:
         st.info("No screening results available. Please screen some resumes first.")
         return
@@ -739,9 +791,51 @@ def view_results_page():
     # Results overview
     st.subheader("📈 Results Overview")
     
-    # Prepare data
+    # Prepare data - only include results for resumes that still exist
+    existing_resume_ids = {resume['id'] for resume in st.session_state.uploaded_resumes}
     results_data = []
+    
+    # Debug information
+    with st.expander("🔧 Debug Information", expanded=False):
+        st.write(f"**Total resumes in database:** {len(st.session_state.uploaded_resumes)}")
+        st.write(f"**Total screening results in session:** {len(st.session_state.screening_results)}")
+        st.write(f"**Existing resume IDs:** {sorted(existing_resume_ids)}")
+        
+        # Check for orphaned results in database directly
+        if db_manager:
+            try:
+                all_results = db_manager.get_all_screening_results()
+                all_resume_ids = [r.id for r in db_manager.get_all_resumes()]
+                orphaned_in_db = [r for r in all_results if r.resume_id not in all_resume_ids]
+                
+                st.write(f"**Total screening results in database:** {len(all_results)}")
+                st.write(f"**Orphaned results in database:** {len(orphaned_in_db)}")
+                
+                if orphaned_in_db:
+                    st.write("**Orphaned resume IDs in database:**")
+                    orphaned_ids = [r.resume_id for r in orphaned_in_db]
+                    st.write(f"{sorted(set(orphaned_ids))}")
+            except Exception as e:
+                st.write(f"**Error checking database:** {str(e)}")
+        
+        # Show which results will be filtered out in UI
+        filtered_results = []
+        for result in st.session_state.screening_results:
+            if result.get("resume_id") not in existing_resume_ids:
+                filtered_results.append(f"{result['filename']} (ID: {result.get('resume_id')})")
+        
+        if filtered_results:
+            st.write(f"**Results being filtered out in UI:** {len(filtered_results)}")
+            for filtered in filtered_results:
+                st.write(f"• {filtered}")
+        else:
+            st.write("**No results being filtered out in UI**")
+    
     for result in st.session_state.screening_results:
+        # Skip results for deleted resumes
+        if result.get("resume_id") not in existing_resume_ids:
+            continue
+            
         analysis = result["analysis_result"]
         results_data.append({
             "Filename": result["filename"],
@@ -791,9 +885,13 @@ def view_results_page():
     )
     
     if selected_filename:
-        # Find the corresponding result
+        # Find the corresponding result (only from valid results)
+        valid_results = [
+            result for result in st.session_state.screening_results 
+            if result.get("resume_id") in existing_resume_ids
+        ]
         selected_result = next(
-            (result for result in st.session_state.screening_results 
+            (result for result in valid_results 
              if result["filename"] == selected_filename), 
             None
         )

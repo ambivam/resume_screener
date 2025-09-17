@@ -127,6 +127,17 @@ class DatabaseManager:
         finally:
             session.close()
     
+    def get_all_screening_results(self, criteria_id=None):
+        """Get ALL screening results including orphaned ones"""
+        session = self.get_session()
+        try:
+            query = session.query(ScreeningResult)
+            if criteria_id:
+                query = query.filter(ScreeningResult.criteria_id == criteria_id)
+            return query.all()
+        finally:
+            session.close()
+    
     def delete_resume(self, resume_id):
         """Delete a resume and its associated screening results"""
         session = self.get_session()
@@ -168,6 +179,53 @@ class DatabaseManager:
         except Exception as e:
             session.rollback()
             return False, f"Error deleting resumes: {str(e)}"
+        finally:
+            session.close()
+    
+    def cleanup_orphaned_results(self):
+        """Clean up screening results for deleted resumes"""
+        session = self.get_session()
+        try:
+            # Get all existing resume IDs
+            existing_resume_ids = [resume.id for resume in session.query(Resume).all()]
+            all_screening_results = session.query(ScreeningResult).all()
+            
+            # Find orphaned screening results
+            orphaned_results = []
+            for result in all_screening_results:
+                if result.resume_id not in existing_resume_ids:
+                    orphaned_results.append(result)
+            
+            orphaned_count = len(orphaned_results)
+            
+            if orphaned_count > 0:
+                # Show details before deletion
+                orphaned_resume_ids = [r.resume_id for r in orphaned_results]
+                
+                # Delete orphaned results one by one to ensure they're deleted
+                deleted_count = 0
+                for result in orphaned_results:
+                    session.delete(result)
+                    deleted_count += 1
+                
+                session.commit()
+                return True, f"Cleaned up {deleted_count} orphaned screening results (resume IDs: {sorted(set(orphaned_resume_ids))})"
+            else:
+                # Double check - count all results vs existing resumes
+                total_results = len(all_screening_results)
+                total_resumes = len(existing_resume_ids)
+                
+                if total_results > total_resumes * 2:
+                    # Something is wrong, force delete all results and let user re-screen
+                    session.query(ScreeningResult).delete()
+                    session.commit()
+                    return True, f"Force cleaned all {total_results} screening results due to data inconsistency"
+                else:
+                    return True, f"No orphaned results found. Total results: {total_results}, Total resumes: {total_resumes}"
+                
+        except Exception as e:
+            session.rollback()
+            return False, f"Error cleaning up orphaned results: {str(e)}"
         finally:
             session.close()
     

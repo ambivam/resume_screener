@@ -81,7 +81,7 @@ A comprehensive AI-powered resume screening application built with Python, featu
 
 1. **Start the application**
    ```bash
-   streamlit run streamlit_app.py
+   streamlit run streamlit_app_simple.py
    ```
 
 2. **Access the web interface**
@@ -114,11 +114,17 @@ A comprehensive AI-powered resume screening application built with Python, featu
    - View score distributions and trends
    - Generate reports and insights
 
+8. **Data Management**
+   - Use "🔄 Refresh Data" to sync with database
+   - Use "🗑️ Clear Cache" to clear session data
+   - Use "🧹 Cleanup DB" to remove orphaned results
+   - The app automatically detects and fixes stale data
+
 ## 🏗️ Architecture
 
 ### Core Components
 
-- **`streamlit_app.py`**: Main Streamlit application with UI components
+- **`streamlit_app_simple.py`**: Main Streamlit application with UI components
 - **`langgraph_workflow.py`**: LangGraph workflow for AI processing
 - **`ai_prompts.py`**: GPT-4 prompt templates for different scenarios
 - **`resume_parser.py`**: File parsing and text extraction
@@ -239,7 +245,14 @@ Modify `ai_prompts.py` to add specialized prompts for specific industries or rol
 6. **Streamlit Issues**
    - Clear Streamlit cache: `streamlit cache clear`
    - Check port availability (default 8501)
-   - Run with specific port: `streamlit run streamlit_app.py --server.port 8502`
+   - Run with specific port: `streamlit run streamlit_app_simple.py --server.port 8502`
+
+7. **Data Consistency Issues**
+   - **Problem**: Deleted resumes still appear in results
+   - **Cause**: Stale session state data
+   - **Solution**: Click "🗑️ Clear Cache" button in View Results page
+   - **Alternative**: Restart the Streamlit application
+   - **Prevention**: App now auto-detects and fixes stale data
 
 ## 📈 Performance Optimization
 
