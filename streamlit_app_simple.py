@@ -4,6 +4,8 @@ import json
 import os
 from datetime import datetime
 from typing import Dict, List, Any
+import glob
+from pathlib import Path
 
 # Import our custom modules
 from config import config
@@ -184,6 +186,43 @@ def create_sidebar():
         
         return selected
 
+def process_folder_files(folder_path: str) -> List[Dict]:
+    """Process all resume files from a selected folder"""
+    supported_extensions = ['.pdf', '.docx', '.txt']
+    processed_files = []
+    
+    try:
+        folder_path = Path(folder_path)
+        if not folder_path.exists():
+            return []
+        
+        # Find all supported files in the folder
+        for ext in supported_extensions:
+            pattern = f"*{ext}"
+            files = list(folder_path.glob(pattern))
+            for file_path in files:
+                try:
+                    with open(file_path, 'rb') as f:
+                        file_content = f.read()
+                    
+                    # Validate file size
+                    if len(file_content) > config.MAX_FILE_SIZE_MB * 1024 * 1024:
+                        continue
+                    
+                    processed_files.append({
+                        'name': file_path.name,
+                        'content': file_content,
+                        'path': str(file_path)
+                    })
+                except Exception as e:
+                    st.warning(f"Could not read {file_path.name}: {str(e)}")
+                    continue
+    
+    except Exception as e:
+        st.error(f"Error accessing folder: {str(e)}")
+    
+    return processed_files
+
 def upload_resumes_page():
     """Resume upload page"""
     st.markdown('<h1 class="main-header">📄 Upload Resumes</h1>', unsafe_allow_html=True)
@@ -192,76 +231,158 @@ def upload_resumes_page():
     <div class="info-box">
         <strong>Supported formats:</strong> PDF, DOCX, TXT<br>
         <strong>Maximum file size:</strong> 10MB per file<br>
-        <strong>Batch upload:</strong> Upload multiple files at once
+        <strong>Upload options:</strong> Individual files or entire folder
     </div>
     """, unsafe_allow_html=True)
     
-    # File uploader
-    uploaded_files = st.file_uploader(
-        "Choose resume files",
-        type=['pdf', 'docx', 'txt'],
-        accept_multiple_files=True,
-        help="Upload one or more resume files for screening"
+    # Upload method selection
+    upload_method = st.radio(
+        "Choose upload method:",
+        ["📁 Upload Individual Files", "📂 Upload from Folder"],
+        horizontal=True
     )
     
+    # Initialize session state for folder files
+    if 'scanned_folder_files' not in st.session_state:
+        st.session_state.scanned_folder_files = []
+    
+    uploaded_files = None
+    folder_files = None
+    
+    if upload_method == "📁 Upload Individual Files":
+        # Clear folder files when switching to individual upload
+        st.session_state.scanned_folder_files = []
+        
+        # File uploader
+        uploaded_files = st.file_uploader(
+            "Choose resume files",
+            type=['pdf', 'docx', 'txt'],
+            accept_multiple_files=True,
+            help="Upload one or more resume files for screening"
+        )
+    else:
+        # Folder selection
+        st.markdown("### 📂 Select Folder")
+        folder_path = st.text_input(
+            "Enter folder path containing resume files:",
+            placeholder="C:\\path\\to\\resume\\folder",
+            help="Enter the full path to the folder containing resume files (PDF, DOCX, TXT)"
+        )
+        
+        if folder_path:
+            if st.button("🔍 Scan Folder", type="primary"):
+                folder_files = process_folder_files(folder_path)
+                st.session_state.scanned_folder_files = folder_files
+                if folder_files:
+                    st.success(f"Found {len(folder_files)} resume files in the folder")
+                    # Display found files
+                    file_names = [f['name'] for f in folder_files]
+                    st.write("**Files found:**")
+                    for name in file_names:
+                        st.write(f"• {name}")
+                else:
+                    st.warning("No supported resume files found in the specified folder")
+        
+        # Use scanned files from session state
+        if st.session_state.scanned_folder_files:
+            folder_files = st.session_state.scanned_folder_files
+            st.success(f"Ready to process {len(folder_files)} resume files")
+            file_names = [f['name'] for f in folder_files]
+            st.write("**Files ready for processing:**")
+            for name in file_names:
+                st.write(f"• {name}")
+    
+    # Process files based on upload method
+    files_to_process = []
+    
     if uploaded_files:
-        st.subheader("📋 Processing Files")
-        
-        progress_bar = st.progress(0)
-        status_text = st.empty()
-        
-        processed_resumes = []
-        
-        for i, uploaded_file in enumerate(uploaded_files):
-            try:
-                # Update progress
-                progress = (i + 1) / len(uploaded_files)
-                progress_bar.progress(progress)
-                status_text.text(f"Processing {uploaded_file.name}...")
+        # Convert uploaded files to common format
+        for uploaded_file in uploaded_files:
+            files_to_process.append({
+                'name': uploaded_file.name,
+                'content': uploaded_file.read(),
+                'source': 'upload'
+            })
+    elif folder_files:
+        # Use folder files
+        for folder_file in folder_files:
+            files_to_process.append({
+                'name': folder_file['name'],
+                'content': folder_file['content'],
+                'source': 'folder'
+            })
+    
+    # Process files if any are available
+    if files_to_process:
+        if st.button("🚀 Process Files", type="primary", use_container_width=True):
+            st.subheader("📋 Processing Files")
+            
+            progress_bar = st.progress(0)
+            status_text = st.empty()
+            
+            processed_resumes = []
+            
+            for i, file_data in enumerate(files_to_process):
+                try:
+                    # Update progress
+                    progress = (i + 1) / len(files_to_process)
+                    progress_bar.progress(progress)
+                    status_text.text(f"Processing {file_data['name']}...")
+                    
+                    # Validate file
+                    resume_parser.validate_file(file_data['name'], len(file_data['content']), config.MAX_FILE_SIZE_MB)
+                    
+                    # Parse resume
+                    parsed_resume = resume_parser.parse_resume(file_data['content'], file_data['name'])
+                    
+                    # Save to database
+                    resume_id = db_manager.save_resume(
+                        filename=file_data['name'],
+                        text=parsed_resume['raw_text'],
+                        file_size=len(file_data['content']),
+                        file_type=parsed_resume['file_type']
+                    )
+                    
+                    processed_resumes.append({
+                        'id': resume_id,
+                        'filename': file_data['name'],
+                        'text': parsed_resume['raw_text'],
+                        'word_count': parsed_resume['word_count'],
+                        'file_type': parsed_resume['file_type'],
+                        'upload_date': datetime.now(),
+                        'source': file_data['source']
+                    })
+                    
+                except Exception as e:
+                    st.error(f"Error processing {file_data['name']}: {str(e)}")
+            
+            # Update session state
+            st.session_state.uploaded_resumes.extend(processed_resumes)
+            
+            progress_bar.progress(1.0)
+            status_text.text("✅ All files processed successfully!")
+            
+            # Clear scanned folder files after processing
+            if upload_method == "📂 Upload from Folder":
+                st.session_state.scanned_folder_files = []
+            
+            # Display results
+            if processed_resumes:
+                st.success(f"✅ Successfully processed {len(processed_resumes)} resume(s)!")
+                st.balloons()  # Add celebratory animation
                 
-                # Validate file
-                file_content = uploaded_file.read()
-                resume_parser.validate_file(uploaded_file.name, len(file_content), config.MAX_FILE_SIZE_MB)
-                
-                # Parse resume
-                parsed_resume = resume_parser.parse_resume(file_content, uploaded_file.name)
-                
-                # Save to database
-                resume_id = db_manager.save_resume(
-                    filename=uploaded_file.name,
-                    text=parsed_resume['raw_text'],
-                    file_size=len(file_content),
-                    file_type=parsed_resume['file_type']
+                # Show summary table
+                df = pd.DataFrame(processed_resumes)
+                st.subheader("📊 Processing Summary")
+                st.dataframe(
+                    df[['filename', 'word_count', 'file_type', 'upload_date', 'source']],
+                    use_container_width=True
                 )
                 
-                processed_resumes.append({
-                    'id': resume_id,
-                    'filename': uploaded_file.name,
-                    'text': parsed_resume['raw_text'],
-                    'word_count': parsed_resume['word_count'],
-                    'file_type': parsed_resume['file_type'],
-                    'upload_date': datetime.now()
-                })
-                
-            except Exception as e:
-                st.error(f"Error processing {uploaded_file.name}: {str(e)}")
-        
-        # Update session state
-        st.session_state.uploaded_resumes.extend(processed_resumes)
-        
-        progress_bar.progress(1.0)
-        status_text.text("✅ All files processed successfully!")
-        
-        # Display results
-        if processed_resumes:
-            st.success(f"Successfully processed {len(processed_resumes)} resume(s)")
-            
-            # Show summary table
-            df = pd.DataFrame(processed_resumes)
-            st.dataframe(
-                df[['filename', 'word_count', 'file_type', 'upload_date']],
-                use_container_width=True
-            )
+                # Show additional confirmation
+                st.info(f"All {len(processed_resumes)} resume(s) have been saved to the database and are ready for screening.")
+            else:
+                st.warning("No files were successfully processed. Please check the files and try again.")
     
     # Show existing uploads
     if st.session_state.uploaded_resumes:

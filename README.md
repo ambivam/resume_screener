@@ -10,6 +10,7 @@ A comprehensive AI-powered resume screening application built with Python, featu
 - **MySQL Database**: Persistent storage for resumes, criteria, and results
 - **Interactive UI**: Modern Streamlit interface with real-time analytics
 - **Batch Processing**: Screen multiple resumes simultaneously
+- **Folder Upload**: Upload all resume files from a folder at once
 - **Customizable Criteria**: Flexible screening criteria for different roles
 - **Detailed Analytics**: Comprehensive visualizations and reporting
 - **Export Functionality**: Export results to CSV and other formats
@@ -88,7 +89,9 @@ A comprehensive AI-powered resume screening application built with Python, featu
 
 3. **Upload Resumes**
    - Navigate to "Upload Resumes"
-   - Select one or more resume files (PDF, DOCX, TXT)
+   - Choose upload method:
+     - **Individual Files**: Select one or more resume files (PDF, DOCX, TXT)
+     - **Folder Upload**: Enter folder path to upload all resume files from a directory
    - Files will be automatically parsed and stored
 
 4. **Set Screening Criteria**
