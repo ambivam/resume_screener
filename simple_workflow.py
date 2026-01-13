@@ -16,7 +16,7 @@ class SimpleResumeScreener:
         )
     
     def screen_resume(self, resume_text: str, criteria: Dict[str, Any]) -> Dict[str, Any]:
-        """Screen a resume using GPT-4"""
+        """Screen a resume using GPT-4 (legacy method for backward compatibility)"""
         try:
             # Validate input
             if not resume_text or not resume_text.strip():
@@ -60,31 +60,139 @@ class SimpleResumeScreener:
             }
             
         except Exception as e:
-            return {
-                "success": False,
-                "error": str(e),
-                "analysis_result": {
-                    "overall_score": 0,
-                    "category": "ERROR",
-                    "detailed_analysis": {
-                        "strengths": [],
-                        "weaknesses": ["Analysis failed due to error"],
-                        "technical_skills_score": 0,
-                        "experience_score": 0,
-                        "education_score": 0,
-                        "cultural_fit_score": 0,
-                        "recommendations": f"Unable to analyze resume: {str(e)}"
-                    },
-                    "criteria_match": {
-                        "required_skills": 0,
-                        "preferred_skills": 0,
-                        "experience_level": 0,
-                        "education_requirements": 0
-                    },
-                    "key_highlights": [],
-                    "red_flags": [f"Analysis error: {str(e)}"]
+            return self._create_error_result(str(e))
+    
+    def screen_resume_with_vacancy(self, resume_text: str, vacancy_json: Dict[str, Any]) -> Dict[str, Any]:
+        """Screen a resume against a job vacancy JSON"""
+        try:
+            # Validate input
+            if not resume_text or not resume_text.strip():
+                return {
+                    "success": False,
+                    "error": "Resume text is empty or missing",
+                    "analysis_result": {}
                 }
+            
+            if not vacancy_json or not isinstance(vacancy_json, dict):
+                return {
+                    "success": False,
+                    "error": "Job vacancy data is missing or invalid",
+                    "analysis_result": {}
+                }
+            
+            if "id" not in vacancy_json:
+                return {
+                    "success": False,
+                    "error": "Vacancy ID is required",
+                    "analysis_result": {}
+                }
+            
+            # Generate vacancy-based prompt
+            prompt = ResumeScreeningPrompts.get_vacancy_based_analysis_prompt(resume_text, vacancy_json)
+            
+            # Call GPT-4
+            message = HumanMessage(content=prompt)
+            response = self.llm.invoke([message])
+            
+            # Parse response
+            analysis_result = self._parse_response(response.content)
+            
+            # Add vacancy-specific information to the result
+            analysis_result["vacancy_id"] = vacancy_json.get("id")
+            analysis_result["vacancy_title"] = vacancy_json.get("group", "Unknown Position")
+            
+            return {
+                "success": True,
+                "error": "",
+                "analysis_result": analysis_result,
+                "vacancy_id": vacancy_json.get("id"),
+                "messages": [
+                    {"role": "system", "content": "Vacancy-based analysis completed successfully"}
+                ]
             }
+            
+        except Exception as e:
+            return self._create_error_result(str(e))
+    
+    def screen_resume_with_profile(self, resume_text: str, candidate_profile_json: Dict[str, Any]) -> Dict[str, Any]:
+        """Screen a resume against candidate profile preferences"""
+        try:
+            # Validate input
+            if not resume_text or not resume_text.strip():
+                return {
+                    "success": False,
+                    "error": "Resume text is empty or missing",
+                    "analysis_result": {}
+                }
+            
+            if not candidate_profile_json or not isinstance(candidate_profile_json, dict):
+                return {
+                    "success": False,
+                    "error": "Candidate profile data is missing or invalid",
+                    "analysis_result": {}
+                }
+            
+            if "id" not in candidate_profile_json:
+                return {
+                    "success": False,
+                    "error": "Profile ID is required",
+                    "analysis_result": {}
+                }
+            
+            # Generate profile-based prompt
+            prompt = ResumeScreeningPrompts.get_candidate_profile_matching_prompt(resume_text, candidate_profile_json)
+            
+            # Call GPT-4
+            message = HumanMessage(content=prompt)
+            response = self.llm.invoke([message])
+            
+            # Parse response
+            analysis_result = self._parse_response(response.content)
+            
+            # Add profile-specific information to the result
+            analysis_result["candidate_profile_id"] = candidate_profile_json.get("id")
+            analysis_result["profile_description"] = candidate_profile_json.get("profileDescription", "Unknown Profile")
+            
+            return {
+                "success": True,
+                "error": "",
+                "analysis_result": analysis_result,
+                "candidate_profile_id": candidate_profile_json.get("id"),
+                "messages": [
+                    {"role": "system", "content": "Profile-based analysis completed successfully"}
+                ]
+            }
+            
+        except Exception as e:
+            return self._create_error_result(str(e))
+
+    def _create_error_result(self, error_message: str) -> Dict[str, Any]:
+        """Create standardized error result"""
+        return {
+            "success": False,
+            "error": error_message,
+            "analysis_result": {
+                "overall_score": 0,
+                "category": "ERROR",
+                "detailed_analysis": {
+                    "strengths": [],
+                    "weaknesses": ["Analysis failed due to error"],
+                    "technical_skills_score": 0,
+                    "experience_score": 0,
+                    "education_score": 0,
+                    "cultural_fit_score": 0,
+                    "recommendations": f"Unable to analyze resume: {error_message}"
+                },
+                "criteria_match": {
+                    "required_skills": 0,
+                    "preferred_skills": 0,
+                    "experience_level": 0,
+                    "education_requirements": 0
+                },
+                "key_highlights": [],
+                "red_flags": [f"Analysis error: {error_message}"]
+            }
+        }
     
     def _parse_response(self, response_text: str) -> Dict[str, Any]:
         """Parse GPT-4 response to extract JSON"""

@@ -181,7 +181,7 @@ def create_sidebar():
         # Navigation menu
         selected = st.selectbox(
             "Navigation",
-            ["Upload Resumes", "Set Criteria", "Screen Resumes", "View Results"]
+            ["Upload Resumes", "Job Vacancies", "Candidate Profiles", "Set Criteria", "Screen Resumes", "View Results"]
         )
         
         # Statistics
@@ -611,20 +611,26 @@ def screen_resumes_page():
     """Resume screening page"""
     st.markdown('<h1 class="main-header">🔍 Screen Resumes</h1>', unsafe_allow_html=True)
     
+    st.markdown("""
+    <div class="info-box">
+        <strong>Screening Options:</strong> Choose between traditional criteria-based screening or job vacancy-based screening.<br>
+        <strong>Job Vacancy Screening:</strong> Uses comprehensive job vacancy JSON for more accurate matching<br>
+        <strong>Traditional Screening:</strong> Uses custom criteria you define manually
+    </div>
+    """, unsafe_allow_html=True)
+    
     # Add refresh button
     col1, col2 = st.columns([3, 1])
     with col2:
         if st.button("🔄 Refresh from Database"):
             st.session_state.uploaded_resumes = load_resumes_from_database()
+            if 'job_vacancies' not in st.session_state:
+                st.session_state.job_vacancies = load_job_vacancies_from_database()
             st.rerun()
     
     # Check prerequisites
     if not st.session_state.uploaded_resumes:
         st.warning("⚠️ Please upload resumes first!")
-        return
-    
-    if not st.session_state.current_criteria:
-        st.warning("⚠️ Please set screening criteria first!")
         return
     
     # Environment check
@@ -633,9 +639,136 @@ def screen_resumes_page():
         st.error(f"❌ Environment configuration error: {env_error}")
         return
     
-    # Display current criteria
-    with st.expander("📋 Current Screening Criteria", expanded=False):
-        st.json(st.session_state.current_criteria)
+    # Initialize job vacancies if not present
+    if 'job_vacancies' not in st.session_state:
+        st.session_state.job_vacancies = load_job_vacancies_from_database()
+    
+    # Screening method selection
+    st.subheader("🎯 Choose Screening Method")
+    screening_method = st.radio(
+        "Select screening approach:",
+        ["💼 Job Vacancy Based", "👤 Candidate Profile Based", "📋 Traditional Criteria"],
+        horizontal=False,
+        help="Job Vacancy Based: Screen against job requirements | Candidate Profile Based: Check resume-profile consistency | Traditional: Use custom criteria"
+    )
+    
+    selected_vacancy = None
+    selected_profile = None
+    use_criteria = False
+    
+    if screening_method == "💼 Job Vacancy Based":
+        if not st.session_state.job_vacancies:
+            st.warning("⚠️ No job vacancies found! Please add job vacancies first using the 'Job Vacancies' page.")
+            return
+        
+        st.subheader("💼 Select Job Vacancy")
+        vacancy_options = {
+            f"ID {v['id']}: {v['group_name']} ({v.get('seniority', {}).get('valueItem', 'N/A')})": v 
+            for v in st.session_state.job_vacancies
+        }
+        
+        selected_vacancy_key = st.selectbox(
+            "Choose job vacancy for screening:",
+            options=list(vacancy_options.keys()),
+            help="Select the job vacancy to screen resumes against"
+        )
+        
+        if selected_vacancy_key:
+            selected_vacancy = vacancy_options[selected_vacancy_key]
+            
+            # Display selected vacancy details
+            with st.expander("💼 Selected Job Vacancy Details", expanded=False):
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.write(f"**Position:** {selected_vacancy['group_name']}")
+                    st.write(f"**Vacancy ID:** {selected_vacancy['vacancy_id']}")
+                    st.write(f"**Positions Available:** {selected_vacancy['num_positions']}")
+                    if selected_vacancy.get('seniority'):
+                        st.write(f"**Seniority:** {selected_vacancy['seniority'].get('valueItem', 'N/A')}")
+                
+                with col2:
+                    if selected_vacancy.get('skills'):
+                        required_skills = [s['name'] for s in selected_vacancy['skills'] if s.get('isRequired')]
+                        st.write(f"**Required Skills:** {len(required_skills)}")
+                        preferred_skills = [s['name'] for s in selected_vacancy['skills'] if not s.get('isRequired')]
+                        st.write(f"**Preferred Skills:** {len(preferred_skills)}")
+                    
+                    if selected_vacancy.get('languages'):
+                        st.write(f"**Language Requirements:** {len(selected_vacancy['languages'])}")
+                
+                if selected_vacancy.get('job_activities'):
+                    st.markdown("**Job Activities:**")
+                    st.text_area("", value=selected_vacancy['job_activities'], height=100, disabled=True)
+    
+    elif screening_method == "👤 Candidate Profile Based":
+        # Initialize candidate profiles if not present
+        if 'candidate_profiles' not in st.session_state:
+            st.session_state.candidate_profiles = load_candidate_profiles_from_database()
+        
+        if not st.session_state.candidate_profiles:
+            st.warning("⚠️ No candidate profiles found! Please add candidate profiles first using the 'Candidate Profiles' page.")
+            return
+        
+        st.subheader("👤 Select Candidate Profile")
+        profile_options = {
+            f"ID {p['id']}: {p['profile_description'][:50] + '...' if p.get('profile_description') and len(p['profile_description']) > 50 else (p.get('profile_description') or 'No description')}": p 
+            for p in st.session_state.candidate_profiles
+        }
+        
+        selected_profile_key = st.selectbox(
+            "Choose candidate profile for consistency analysis:",
+            options=list(profile_options.keys()),
+            help="Select the candidate profile to check resume consistency against"
+        )
+        
+        if selected_profile_key:
+            selected_profile = profile_options[selected_profile_key]
+            
+            # Display selected profile details
+            with st.expander("👤 Selected Candidate Profile Details", expanded=False):
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.write(f"**Profile ID:** {selected_profile['profile_id']}")
+                    st.write(f"**Currently Working:** {selected_profile.get('working', 'N/A')}")
+                    
+                    if selected_profile.get('regions'):
+                        st.write("**Location Preferences:**")
+                        for region in selected_profile['regions'][:2]:  # Show first 2
+                            state = region.get('state', 'Unknown')
+                            cities = region.get('city', [])
+                            if cities:
+                                st.write(f"• {state}: {', '.join(cities[:2])}")
+                            else:
+                                st.write(f"• {state}")
+                
+                with col2:
+                    if selected_profile.get('experience_areas'):
+                        st.write("**Experience Areas:**")
+                        for area in selected_profile['experience_areas'][:3]:  # Show first 3
+                            st.write(f"• {area.get('valueItem', 'N/A')}")
+                    
+                    if selected_profile.get('languages'):
+                        st.write(f"**Languages:** {len(selected_profile['languages'])}")
+                    
+                    if selected_profile.get('salary_ranges'):
+                        st.write(f"**Salary Expectations:** {len(selected_profile['salary_ranges'])}")
+                
+                if selected_profile.get('profile_description'):
+                    st.markdown("**Profile Description:**")
+                    st.text_area("", value=selected_profile['profile_description'], height=100, disabled=True)
+    
+    else:  # Traditional Criteria
+        if not st.session_state.current_criteria:
+            st.warning("⚠️ Please set screening criteria first using the 'Set Criteria' page!")
+            return
+        
+        use_criteria = True
+        
+        # Display current criteria
+        with st.expander("📋 Current Screening Criteria", expanded=False):
+            st.json(st.session_state.current_criteria)
     
     # Resume selection
     st.subheader("📄 Select Resumes to Screen")
@@ -653,6 +786,14 @@ def screen_resumes_page():
     
     if selected_resumes:
         st.info(f"Selected {len(selected_resumes)} resume(s) for screening")
+        
+        # Show screening method summary
+        if screening_method == "💼 Job Vacancy Based" and selected_vacancy:
+            st.success(f"🎯 Ready to screen against: **{selected_vacancy['group_name']}**")
+        elif screening_method == "👤 Candidate Profile Based" and selected_profile:
+            st.success(f"🎯 Ready to analyze resume-profile consistency for: **{selected_profile['profile_description'][:50]}...**")
+        elif use_criteria:
+            st.success(f"🎯 Ready to screen with traditional criteria")
         
         # Start screening
         if st.button("🚀 Start Screening", type="primary", use_container_width=True):
@@ -677,29 +818,85 @@ def screen_resumes_page():
                 status_text.text(f"🔄 Screening {resume['filename']}...")
                 
                 try:
-                    result = resume_screener.screen_resume(resume["text"], st.session_state.current_criteria)
+                    if screening_method == "💼 Job Vacancy Based" and selected_vacancy:
+                        # Use vacancy-based screening
+                        result = resume_screener.screen_resume_with_vacancy(
+                            resume["text"], 
+                            selected_vacancy['full_vacancy_json']
+                        )
+                        
+                        if result["success"]:
+                            result["resume_id"] = resume["id"]
+                            result["filename"] = resume["filename"]
+                            result["screening_method"] = "vacancy_based"
+                            result["vacancy_id"] = selected_vacancy['id']
+                            screening_results.append(result)
+                            
+                            # Save to database with vacancy reference
+                            db_manager.save_screening_result(
+                                resume_id=resume["id"],
+                                overall_score=result["analysis_result"]["overall_score"],
+                                category=result["analysis_result"]["category"],
+                                detailed_analysis=result["analysis_result"],
+                                vacancy_id=selected_vacancy['id'],
+                                screening_type='vacancy_based'
+                            )
+                        else:
+                            st.error(f"Error screening {resume['filename']}: {result.get('error', 'Unknown error')}")
                     
-                    if result["success"]:
-                        result["resume_id"] = resume["id"]
-                        result["filename"] = resume["filename"]
-                        screening_results.append(result)
-                        
-                        # Save to database
-                        criteria_id = db_manager.save_criteria(
-                            name=f"Screening - {datetime.now().strftime('%Y-%m-%d %H:%M')}",
-                            description="Auto-generated screening criteria",
-                            criteria_json=st.session_state.current_criteria
+                    elif screening_method == "👤 Candidate Profile Based" and selected_profile:
+                        # Use candidate profile-based screening
+                        result = resume_screener.screen_resume_with_profile(
+                            resume["text"], 
+                            selected_profile['full_profile_json']
                         )
                         
-                        db_manager.save_screening_result(
-                            resume_id=resume["id"],
-                            criteria_id=criteria_id,
-                            overall_score=result["analysis_result"]["overall_score"],
-                            category=result["analysis_result"]["category"],
-                            detailed_analysis=result["analysis_result"]
-                        )
+                        if result["success"]:
+                            result["resume_id"] = resume["id"]
+                            result["filename"] = resume["filename"]
+                            result["screening_method"] = "profile_based"
+                            result["candidate_profile_id"] = selected_profile['id']
+                            screening_results.append(result)
+                            
+                            # Save to database with profile reference
+                            db_manager.save_screening_result(
+                                resume_id=resume["id"],
+                                overall_score=result["analysis_result"]["overall_score"],
+                                category=result["analysis_result"]["category"],
+                                detailed_analysis=result["analysis_result"],
+                                candidate_profile_id=selected_profile['id'],
+                                screening_type='profile_based'
+                            )
+                        else:
+                            st.error(f"Error screening {resume['filename']}: {result.get('error', 'Unknown error')}")
+                    
                     else:
-                        st.error(f"Error screening {resume['filename']}: {result.get('error', 'Unknown error')}")
+                        # Use traditional criteria-based screening
+                        result = resume_screener.screen_resume(resume["text"], st.session_state.current_criteria)
+                        
+                        if result["success"]:
+                            result["resume_id"] = resume["id"]
+                            result["filename"] = resume["filename"]
+                            result["screening_method"] = "criteria_based"
+                            screening_results.append(result)
+                            
+                            # Save to database with criteria reference
+                            criteria_id = db_manager.save_criteria(
+                                name=f"Screening - {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+                                description="Auto-generated screening criteria",
+                                criteria_json=st.session_state.current_criteria
+                            )
+                            
+                            db_manager.save_screening_result(
+                                resume_id=resume["id"],
+                                overall_score=result["analysis_result"]["overall_score"],
+                                category=result["analysis_result"]["category"],
+                                detailed_analysis=result["analysis_result"],
+                                criteria_id=criteria_id,
+                                screening_type='criteria_based'
+                            )
+                        else:
+                            st.error(f"Error screening {resume['filename']}: {result.get('error', 'Unknown error')}")
                 
                 except Exception as e:
                     st.error(f"Error processing {resume['filename']}: {str(e)}")
@@ -926,6 +1123,521 @@ def view_results_page():
             st.markdown("**Recommendations:**")
             st.write(detailed.get("recommendations", "No specific recommendations provided."))
 
+def job_vacancies_page():
+    """Job vacancy management page"""
+    st.markdown('<h1 class="main-header">💼 Job Vacancies</h1>', unsafe_allow_html=True)
+    
+    st.markdown("""
+    <div class="info-box">
+        <strong>Job Vacancy Management:</strong> Import job vacancies from JSON format to use for resume screening.<br>
+        <strong>Supported format:</strong> Complete job vacancy JSON with skills, requirements, and benefits<br>
+        <strong>Features:</strong> Store, view, and use job vacancies for targeted resume screening
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Initialize session state for job vacancies
+    if 'job_vacancies' not in st.session_state:
+        st.session_state.job_vacancies = load_job_vacancies_from_database()
+    
+    # Tabs for different vacancy operations
+    tab1, tab2, tab3 = st.tabs(["📥 Import Vacancy", "📋 View Vacancies", "🔧 Manage Vacancies"])
+    
+    with tab1:
+        st.subheader("📥 Import Job Vacancy JSON")
+        
+        # JSON input methods
+        input_method = st.radio(
+            "Choose input method:",
+            ["📝 Paste JSON", "📁 Upload JSON File"],
+            horizontal=True
+        )
+        
+        vacancy_json = None
+        
+        if input_method == "📝 Paste JSON":
+            json_text = st.text_area(
+                "Paste job vacancy JSON:",
+                height=300,
+                placeholder="""Paste your job vacancy JSON here...
+Example:
+{
+    "id": 3255,
+    "group": "Software Engineer Position",
+    "jobActivities": "Develop and maintain software applications...",
+    "skills": [...],
+    "languages": [...],
+    ...
+}"""
+            )
+            
+            if json_text.strip():
+                try:
+                    vacancy_json = json.loads(json_text)
+                    st.success("✅ Valid JSON format detected")
+                    
+                    # Preview key information
+                    st.markdown("**Preview:**")
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.write(f"**ID:** {vacancy_json.get('id', 'N/A')}")
+                        st.write(f"**Position:** {vacancy_json.get('group', 'N/A')}")
+                        st.write(f"**Positions Available:** {vacancy_json.get('numOfPositions', 1)}")
+                    with col2:
+                        st.write(f"**Seniority:** {vacancy_json.get('seniority', {}).get('valueItem', 'N/A')}")
+                        st.write(f"**Visibility:** {vacancy_json.get('visibility', 'N/A')}")
+                        skills_count = len(vacancy_json.get('skills', []))
+                        st.write(f"**Skills Required:** {skills_count}")
+                        
+                except json.JSONDecodeError as e:
+                    st.error(f"❌ Invalid JSON format: {str(e)}")
+        
+        else:  # Upload JSON file
+            uploaded_file = st.file_uploader(
+                "Upload job vacancy JSON file:",
+                type=['json'],
+                help="Upload a JSON file containing job vacancy data"
+            )
+            
+            if uploaded_file is not None:
+                try:
+                    json_content = uploaded_file.read().decode('utf-8')
+                    vacancy_json = json.loads(json_content)
+                    st.success("✅ JSON file loaded successfully")
+                    
+                    # Preview key information
+                    st.markdown("**Preview:**")
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.write(f"**ID:** {vacancy_json.get('id', 'N/A')}")
+                        st.write(f"**Position:** {vacancy_json.get('group', 'N/A')}")
+                        st.write(f"**Positions Available:** {vacancy_json.get('numOfPositions', 1)}")
+                    with col2:
+                        st.write(f"**Seniority:** {vacancy_json.get('seniority', {}).get('valueItem', 'N/A')}")
+                        st.write(f"**Visibility:** {vacancy_json.get('visibility', 'N/A')}")
+                        skills_count = len(vacancy_json.get('skills', []))
+                        st.write(f"**Skills Required:** {skills_count}")
+                        
+                except (json.JSONDecodeError, UnicodeDecodeError) as e:
+                    st.error(f"❌ Error reading JSON file: {str(e)}")
+        
+        # Save vacancy button
+        if vacancy_json and st.button("💾 Save Job Vacancy", type="primary"):
+            if db_manager:
+                try:
+                    vacancy_id = db_manager.save_job_vacancy(vacancy_json)
+                    st.success(f"✅ Job vacancy saved successfully! (Database ID: {vacancy_id})")
+                    
+                    # Refresh session state
+                    st.session_state.job_vacancies = load_job_vacancies_from_database()
+                    st.rerun()
+                    
+                except Exception as e:
+                    st.error(f"❌ Error saving job vacancy: {str(e)}")
+            else:
+                st.error("❌ Database connection not available")
+    
+    with tab2:
+        st.subheader("📋 Current Job Vacancies")
+        
+        if not st.session_state.job_vacancies:
+            st.info("No job vacancies found. Import a vacancy using the 'Import Vacancy' tab.")
+        else:
+            # Display vacancies in a table format
+            vacancy_data = []
+            for vacancy in st.session_state.job_vacancies:
+                vacancy_data.append({
+                    "Database ID": vacancy['id'],
+                    "Vacancy ID": vacancy['vacancy_id'],
+                    "Position": vacancy['group_name'] or "N/A",
+                    "Seniority": vacancy.get('seniority', {}).get('valueItem', 'N/A') if vacancy.get('seniority') else 'N/A',
+                    "Skills Count": len(vacancy.get('skills', [])) if vacancy.get('skills') else 0,
+                    "Languages": len(vacancy.get('languages', [])) if vacancy.get('languages') else 0,
+                    "Created": vacancy['created_at'].strftime('%Y-%m-%d %H:%M') if vacancy.get('created_at') else 'N/A'
+                })
+            
+            df = pd.DataFrame(vacancy_data)
+            st.dataframe(df, use_container_width=True)
+            
+            # Detailed view
+            st.subheader("🔍 Detailed Vacancy View")
+            selected_vacancy_id = st.selectbox(
+                "Select vacancy for detailed view:",
+                options=[v['id'] for v in st.session_state.job_vacancies],
+                format_func=lambda x: f"ID {x}: {next(v['group_name'] for v in st.session_state.job_vacancies if v['id'] == x)}"
+            )
+            
+            if selected_vacancy_id:
+                selected_vacancy = next(v for v in st.session_state.job_vacancies if v['id'] == selected_vacancy_id)
+                
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.markdown("**Basic Information:**")
+                    st.write(f"**Database ID:** {selected_vacancy['id']}")
+                    st.write(f"**Original Vacancy ID:** {selected_vacancy['vacancy_id']}")
+                    st.write(f"**Position:** {selected_vacancy['group_name']}")
+                    st.write(f"**Number of Positions:** {selected_vacancy['num_positions']}")
+                    st.write(f"**Visibility:** {selected_vacancy['visibility']}")
+                    
+                    if selected_vacancy.get('seniority'):
+                        st.write(f"**Seniority:** {selected_vacancy['seniority'].get('valueItem', 'N/A')}")
+                    
+                    if selected_vacancy.get('created_by'):
+                        creator = selected_vacancy['created_by']
+                        st.write(f"**Created by:** {creator.get('firstName', '')} {creator.get('lastName', '')}")
+                
+                with col2:
+                    st.markdown("**Requirements:**")
+                    if selected_vacancy.get('skills'):
+                        required_skills = [s['name'] for s in selected_vacancy['skills'] if s.get('isRequired')]
+                        preferred_skills = [s['name'] for s in selected_vacancy['skills'] if not s.get('isRequired')]
+                        
+                        if required_skills:
+                            st.write("**Required Skills:**")
+                            for skill in required_skills:
+                                st.write(f"• {skill}")
+                        
+                        if preferred_skills:
+                            st.write("**Preferred Skills:**")
+                            for skill in preferred_skills:
+                                st.write(f"• {skill}")
+                    
+                    if selected_vacancy.get('languages'):
+                        st.write("**Language Requirements:**")
+                        for lang in selected_vacancy['languages']:
+                            lang_info = lang.get('languageId', {})
+                            level_info = lang.get('langLevelId', {})
+                            st.write(f"• {lang_info.get('name', 'Unknown')} - {level_info.get('name', 'Unknown level')}")
+                
+                # Job activities
+                if selected_vacancy.get('job_activities'):
+                    st.markdown("**Job Activities:**")
+                    st.text_area("", value=selected_vacancy['job_activities'], height=150, disabled=True)
+    
+    with tab3:
+        st.subheader("🔧 Manage Job Vacancies")
+        
+        if not st.session_state.job_vacancies:
+            st.info("No job vacancies to manage.")
+        else:
+            # Delete vacancy option
+            st.markdown("**Delete Job Vacancy:**")
+            vacancy_to_delete = st.selectbox(
+                "Select vacancy to delete:",
+                options=[0] + [v['id'] for v in st.session_state.job_vacancies],
+                format_func=lambda x: "Select a vacancy..." if x == 0 else f"ID {x}: {next(v['group_name'] for v in st.session_state.job_vacancies if v['id'] == x)}"
+            )
+            
+            if vacancy_to_delete != 0:
+                if st.button("🗑️ Delete Selected Vacancy", type="secondary"):
+                    if db_manager:
+                        try:
+                            # Note: You would need to implement delete_job_vacancy in DatabaseManager
+                            st.warning("Delete functionality not yet implemented in database manager.")
+                        except Exception as e:
+                            st.error(f"❌ Error deleting vacancy: {str(e)}")
+                    else:
+                        st.error("❌ Database connection not available")
+            
+            # Refresh data button
+            if st.button("🔄 Refresh Vacancy Data"):
+                st.session_state.job_vacancies = load_job_vacancies_from_database()
+                st.success("✅ Vacancy data refreshed")
+                st.rerun()
+
+def candidate_profiles_page():
+    """Candidate profile management page"""
+    st.markdown('<h1 class="main-header">👤 Candidate Profiles</h1>', unsafe_allow_html=True)
+    
+    st.markdown("""
+    <div class="info-box">
+        <strong>Candidate Profile Management:</strong> Import candidate profiles/preferences from JSON format for bidirectional matching.<br>
+        <strong>Supported format:</strong> Complete candidate profile JSON with preferences, skills, and requirements<br>
+        <strong>Features:</strong> Store, view, and use candidate profiles for resume-profile consistency analysis
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Initialize session state for candidate profiles
+    if 'candidate_profiles' not in st.session_state:
+        st.session_state.candidate_profiles = load_candidate_profiles_from_database()
+    
+    # Tabs for different profile operations
+    tab1, tab2, tab3 = st.tabs(["📥 Import Profile", "📋 View Profiles", "🔧 Manage Profiles"])
+    
+    with tab1:
+        st.subheader("📥 Import Candidate Profile JSON")
+        
+        # JSON input methods
+        input_method = st.radio(
+            "Choose input method:",
+            ["📝 Paste JSON", "📁 Upload JSON File"],
+            horizontal=True
+        )
+        
+        profile_json = None
+        
+        if input_method == "📝 Paste JSON":
+            json_text = st.text_area(
+                "Paste candidate profile JSON:",
+                height=300,
+                placeholder="""Paste your candidate profile JSON here...
+Example:
+{
+    "id": 1,
+    "profileDescription": "Experienced Java backend developer...",
+    "regions": [...],
+    "salaryRanges": [...],
+    "experienceAreas": [...],
+    "languages": [...],
+    ...
+}"""
+            )
+            
+            if json_text.strip():
+                try:
+                    profile_json = json.loads(json_text)
+                    st.success("✅ Valid JSON format detected")
+                    
+                    # Preview key information
+                    st.markdown("**Preview:**")
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.write(f"**ID:** {profile_json.get('id', 'N/A')}")
+                        st.write(f"**Description:** {profile_json.get('profileDescription', 'N/A')[:100]}...")
+                        st.write(f"**Currently Working:** {profile_json.get('working', 'N/A')}")
+                    with col2:
+                        regions_count = len(profile_json.get('regions', []))
+                        st.write(f"**Location Preferences:** {regions_count}")
+                        languages_count = len(profile_json.get('languages', []))
+                        st.write(f"**Languages:** {languages_count}")
+                        experience_areas_count = len(profile_json.get('experienceAreas', []))
+                        st.write(f"**Experience Areas:** {experience_areas_count}")
+                        
+                except json.JSONDecodeError as e:
+                    st.error(f"❌ Invalid JSON format: {str(e)}")
+        
+        else:  # Upload JSON file
+            uploaded_file = st.file_uploader(
+                "Upload candidate profile JSON file:",
+                type=['json'],
+                help="Upload a JSON file containing candidate profile data"
+            )
+            
+            if uploaded_file is not None:
+                try:
+                    json_content = uploaded_file.read().decode('utf-8')
+                    profile_json = json.loads(json_content)
+                    st.success("✅ JSON file loaded successfully")
+                    
+                    # Preview key information
+                    st.markdown("**Preview:**")
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.write(f"**ID:** {profile_json.get('id', 'N/A')}")
+                        st.write(f"**Description:** {profile_json.get('profileDescription', 'N/A')[:100]}...")
+                        st.write(f"**Currently Working:** {profile_json.get('working', 'N/A')}")
+                    with col2:
+                        regions_count = len(profile_json.get('regions', []))
+                        st.write(f"**Location Preferences:** {regions_count}")
+                        languages_count = len(profile_json.get('languages', []))
+                        st.write(f"**Languages:** {languages_count}")
+                        experience_areas_count = len(profile_json.get('experienceAreas', []))
+                        st.write(f"**Experience Areas:** {experience_areas_count}")
+                        
+                except (json.JSONDecodeError, UnicodeDecodeError) as e:
+                    st.error(f"❌ Error reading JSON file: {str(e)}")
+        
+        # Save profile button
+        if profile_json and st.button("💾 Save Candidate Profile", type="primary"):
+            if db_manager:
+                try:
+                    profile_id = db_manager.save_candidate_profile(profile_json)
+                    st.success(f"✅ Candidate profile saved successfully! (Database ID: {profile_id})")
+                    
+                    # Refresh session state
+                    st.session_state.candidate_profiles = load_candidate_profiles_from_database()
+                    st.rerun()
+                    
+                except Exception as e:
+                    st.error(f"❌ Error saving candidate profile: {str(e)}")
+            else:
+                st.error("❌ Database connection not available")
+    
+    with tab2:
+        st.subheader("📋 Current Candidate Profiles")
+        
+        if not st.session_state.candidate_profiles:
+            st.info("No candidate profiles found. Import a profile using the 'Import Profile' tab.")
+        else:
+            # Display profiles in a table format
+            profile_data = []
+            for profile in st.session_state.candidate_profiles:
+                profile_data.append({
+                    "Database ID": profile['id'],
+                    "Profile ID": profile['profile_id'],
+                    "Description": (profile['profile_description'] or "N/A")[:50] + "..." if profile.get('profile_description') and len(profile['profile_description']) > 50 else (profile.get('profile_description') or "N/A"),
+                    "Working": profile.get('working', 'N/A'),
+                    "Regions": len(profile.get('regions', [])) if profile.get('regions') else 0,
+                    "Languages": len(profile.get('languages', [])) if profile.get('languages') else 0,
+                    "Created": profile['created_at'].strftime('%Y-%m-%d %H:%M') if profile.get('created_at') else 'N/A'
+                })
+            
+            df = pd.DataFrame(profile_data)
+            st.dataframe(df, use_container_width=True)
+            
+            # Detailed view
+            st.subheader("🔍 Detailed Profile View")
+            selected_profile_id = st.selectbox(
+                "Select profile for detailed view:",
+                options=[p['id'] for p in st.session_state.candidate_profiles],
+                format_func=lambda x: f"ID {x}: {next(p['profile_description'][:50] + '...' if p.get('profile_description') and len(p['profile_description']) > 50 else (p.get('profile_description') or 'No description') for p in st.session_state.candidate_profiles if p['id'] == x)}"
+            )
+            
+            if selected_profile_id:
+                selected_profile = next(p for p in st.session_state.candidate_profiles if p['id'] == selected_profile_id)
+                
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.markdown("**Basic Information:**")
+                    st.write(f"**Database ID:** {selected_profile['id']}")
+                    st.write(f"**Original Profile ID:** {selected_profile['profile_id']}")
+                    st.write(f"**Currently Working:** {selected_profile.get('working', 'N/A')}")
+                    
+                    if selected_profile.get('regions'):
+                        st.write("**Location Preferences:**")
+                        for region in selected_profile['regions']:
+                            state = region.get('state', 'Unknown')
+                            cities = region.get('city', [])
+                            if cities:
+                                st.write(f"• {state}: {', '.join(cities)}")
+                            else:
+                                st.write(f"• {state}")
+                
+                with col2:
+                    st.markdown("**Preferences:**")
+                    if selected_profile.get('salary_ranges'):
+                        st.write("**Salary Expectations:**")
+                        for salary in selected_profile['salary_ranges']:
+                            st.write(f"• {salary.get('valueItem', 'N/A')}")
+                    
+                    if selected_profile.get('experience_areas'):
+                        st.write("**Experience Areas:**")
+                        for area in selected_profile['experience_areas']:
+                            st.write(f"• {area.get('valueItem', 'N/A')}")
+                    
+                    if selected_profile.get('hiring_types'):
+                        st.write("**Employment Preferences:**")
+                        for hiring_type in selected_profile['hiring_types']:
+                            st.write(f"• {hiring_type.get('valueItem', 'N/A')}")
+                
+                # Profile description
+                if selected_profile.get('profile_description'):
+                    st.markdown("**Profile Description:**")
+                    st.text_area("", value=selected_profile['profile_description'], height=150, disabled=True)
+                
+                # Languages
+                if selected_profile.get('languages'):
+                    st.markdown("**Language Skills:**")
+                    for lang in selected_profile['languages']:
+                        lang_info = lang.get('language', {})
+                        level_info = lang.get('level', {})
+                        st.write(f"• {lang_info.get('name', 'Unknown')} - {level_info.get('name', 'Unknown level')}")
+    
+    with tab3:
+        st.subheader("🔧 Manage Candidate Profiles")
+        
+        if not st.session_state.candidate_profiles:
+            st.info("No candidate profiles to manage.")
+        else:
+            # Delete profile option
+            st.markdown("**Delete Candidate Profile:**")
+            profile_to_delete = st.selectbox(
+                "Select profile to delete:",
+                options=[0] + [p['id'] for p in st.session_state.candidate_profiles],
+                format_func=lambda x: "Select a profile..." if x == 0 else f"ID {x}: {next(p['profile_description'][:50] + '...' if p.get('profile_description') and len(p['profile_description']) > 50 else (p.get('profile_description') or 'No description') for p in st.session_state.candidate_profiles if p['id'] == x)}"
+            )
+            
+            if profile_to_delete != 0:
+                if st.button("🗑️ Delete Selected Profile", type="secondary"):
+                    st.warning("Delete functionality not yet implemented in database manager.")
+            
+            # Refresh data button
+            if st.button("🔄 Refresh Profile Data"):
+                st.session_state.candidate_profiles = load_candidate_profiles_from_database()
+                st.success("✅ Profile data refreshed")
+                st.rerun()
+
+def load_candidate_profiles_from_database():
+    """Load all candidate profiles from database"""
+    try:
+        if db_manager is None:
+            return []
+        
+        profiles = db_manager.get_all_candidate_profiles()
+        profile_list = []
+        
+        for profile in profiles:
+            profile_list.append({
+                'id': profile.id,
+                'profile_id': profile.profile_id,
+                'profile_description': profile.profile_description,
+                'working': profile.working,
+                'regions': profile.regions,
+                'salary_ranges': profile.salary_ranges,
+                'experience_areas': profile.experience_areas,
+                'languages': profile.languages,
+                'academic_levels': profile.academic_levels,
+                'hiring_types': profile.hiring_types,
+                'updated_at_info': profile.updated_at_info,
+                'created_by': profile.created_by,
+                'modified_by': profile.modified_by,
+                'full_profile_json': profile.full_profile_json,
+                'created_at': profile.created_at
+            })
+        
+        return profile_list
+    except Exception as e:
+        st.error(f"Error loading candidate profiles from database: {str(e)}")
+        return []
+
+def load_job_vacancies_from_database():
+    """Load all job vacancies from database"""
+    try:
+        if db_manager is None:
+            return []
+        
+        vacancies = db_manager.get_all_job_vacancies()
+        vacancy_list = []
+        
+        for vacancy in vacancies:
+            vacancy_list.append({
+                'id': vacancy.id,
+                'vacancy_id': vacancy.vacancy_id,
+                'group_name': vacancy.group_name,
+                'job_activities': vacancy.job_activities,
+                'creation_date': vacancy.creation_date,
+                'update_date': vacancy.update_date,
+                'visibility': vacancy.visibility,
+                'num_positions': vacancy.num_positions,
+                'skills': vacancy.skills,
+                'additional_software': vacancy.additional_software,
+                'languages': vacancy.languages,
+                'benefits': vacancy.benefits,
+                'profile': vacancy.profile,
+                'seniority': vacancy.seniority,
+                'currency': vacancy.currency,
+                'created_by': vacancy.created_by,
+                'position_owner': vacancy.position_owner,
+                'full_vacancy_json': vacancy.full_vacancy_json,
+                'created_at': vacancy.created_at
+            })
+        
+        return vacancy_list
+    except Exception as e:
+        st.error(f"Error loading job vacancies from database: {str(e)}")
+        return []
+
 def main():
     """Main application function"""
     initialize_session_state()
@@ -936,6 +1648,10 @@ def main():
     # Route to appropriate page
     if selected_page == "Upload Resumes":
         upload_resumes_page()
+    elif selected_page == "Job Vacancies":
+        job_vacancies_page()
+    elif selected_page == "Candidate Profiles":
+        candidate_profiles_page()
     elif selected_page == "Set Criteria":
         set_criteria_page()
     elif selected_page == "Screen Resumes":

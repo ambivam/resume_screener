@@ -1,0 +1,247 @@
+{
+	"id": 3255,
+	"group": "DevTest1_LiderRegistrado-INGENIERO EN COMUNICACIONES FW N° SOLICITUD 471",
+	"jobActivities": "- Diseño, implementación y soporte de nivel 2 para servicios de red de países de Latam\n- Entrega de reportes semanales de avances de proyectos de servicios de networking de países de LatAm\n- Gestión de proceso de cambios para actividades relacionadas con los proyectos de países de LatAm\n- Entrega de reportes mensuales de estadísticas de desempeño de servicio\n- Administración de Centros de Datos globalmente\n- Administración de las redes de las líneas de Negocio, Edificios Corporativos ,Sucursales",
+	"creationDate": "2026-01-07 00:00:00",
+	"updateDate": "2026-01-07",
+	"updatedById": 40,
+	"visibility": "No Publicada",
+	"skills": [
+		{
+			"tagId": 10236,
+			"createdById": 40,
+			"name": "Ingeniero en comunicaciones o afín",
+			"description": "",
+			"isPublic": false,
+			"isEnable": true,
+			"categoryId": 1001100001,
+			"categoryName": "Competencias técnicas",
+			"createdBy": 40,
+			"updatedBy": 40,
+			"createdFrom": "backoffice",
+			"updatedFrom": "backoffice",
+			"isRequired": true
+		},
+		{
+			"tagId": 10237,
+			"createdById": 40,
+			"name": "2 años de experiencia como Ingeniero Networking",
+			"description": "",
+			"isPublic": false,
+			"isEnable": true,
+			"categoryId": 1001100001,
+			"categoryName": "Competencias técnicas",
+			"createdBy": 40,
+			"updatedBy": 40,
+			"createdFrom": "backoffice",
+			"updatedFrom": "backoffice",
+			"isRequired": true
+		},
+		{
+			"tagId": 10238,
+			"createdById": 40,
+			"name": "Certificación Itil V3 Fundamentals",
+			"description": "",
+			"isPublic": false,
+			"isEnable": true,
+			"categoryId": 1001100001,
+			"categoryName": "Competencias técnicas",
+			"createdBy": 40,
+			"updatedBy": 40,
+			"createdFrom": "backoffice",
+			"updatedFrom": "backoffice",
+			"isRequired": true
+		},
+		{
+			"tagId": 10239,
+			"createdById": 40,
+			"name": "Certificación CCNA o equivalente",
+			"description": "",
+			"isPublic": false,
+			"isEnable": true,
+			"categoryId": 1001100001,
+			"categoryName": "Competencias técnicas",
+			"createdBy": 40,
+			"updatedBy": 40,
+			"createdFrom": "backoffice",
+			"updatedFrom": "backoffice",
+			"isRequired": true
+		},
+		{
+			"tagId": 10240,
+			"createdById": 40,
+			"name": "Experiencia en administración de balanceadores de tráfico F5 LTM y GTM",
+			"description": "",
+			"isPublic": false,
+			"isEnable": true,
+			"categoryId": 1001100001,
+			"categoryName": "Competencias técnicas",
+			"createdBy": 40,
+			"updatedBy": 40,
+			"createdFrom": "backoffice",
+			"updatedFrom": "backoffice",
+			"isRequired": false
+		},
+		{
+			"tagId": 10241,
+			"createdById": 40,
+			"name": "Experiencia en administración de Firewalls Fortinet y ASA",
+			"description": "",
+			"isPublic": false,
+			"isEnable": true,
+			"categoryId": 1001100001,
+			"categoryName": "Competencias técnicas",
+			"createdBy": 40,
+			"updatedBy": 40,
+			"createdFrom": "backoffice",
+			"updatedFrom": "backoffice",
+			"isRequired": false
+		},
+		{
+			"tagId": 10242,
+			"createdById": 40,
+			"name": "Experiencia en DHCP y DNS Infoblox",
+			"description": "",
+			"isPublic": false,
+			"isEnable": true,
+			"categoryId": 1001100001,
+			"categoryName": "Competencias técnicas",
+			"createdBy": 40,
+			"updatedBy": 40,
+			"createdFrom": "backoffice",
+			"updatedFrom": "backoffice",
+			"isRequired": false
+		},
+		{
+			"tagId": 10243,
+			"createdById": 40,
+			"name": "Experiencia en herramientas de gestión y monitoreo de equipos de red",
+			"description": "",
+			"isPublic": false,
+			"isEnable": true,
+			"categoryId": 1001100001,
+			"categoryName": "Competencias técnicas",
+			"createdBy": 40,
+			"updatedBy": 40,
+			"createdFrom": "backoffice",
+			"updatedFrom": "backoffice",
+			"isRequired": false
+		},
+		{
+			"tagId": 10244,
+			"createdById": 40,
+			"name": "Experiencia en Tecnologías ACI y SDWAN",
+			"description": "",
+			"isPublic": false,
+			"isEnable": true,
+			"categoryId": 1001100001,
+			"categoryName": "Competencias técnicas",
+			"createdBy": 40,
+			"updatedBy": 40,
+			"createdFrom": "backoffice",
+			"updatedFrom": "backoffice",
+			"isRequired": false
+		},
+		{
+			"tagId": 10245,
+			"createdById": 40,
+			"name": "Windows",
+			"description": "",
+			"isPublic": false,
+			"isEnable": true,
+			"categoryId": 1001100001,
+			"categoryName": "Competencias técnicas",
+			"createdBy": 40,
+			"updatedBy": 40,
+			"createdFrom": "backoffice",
+			"updatedFrom": "backoffice",
+			"isRequired": false
+		},
+		{
+			"tagId": 10246,
+			"createdById": 40,
+			"name": "Office 365",
+			"description": "",
+			"isPublic": false,
+			"isEnable": true,
+			"categoryId": 1001100001,
+			"categoryName": "Competencias técnicas",
+			"createdBy": 40,
+			"updatedBy": 40,
+			"createdFrom": "backoffice",
+			"updatedFrom": "backoffice",
+			"isRequired": false
+		}
+	],
+	"aditionalSoftware": [
+		{
+			"id": 1615,
+			"name": "AS400",
+			"observations": "AS400",
+			"vacancyId": 3191
+		}
+	],
+	"languages": [
+		{
+			"id": 3980,
+			"vacancyId": 3216,
+			"languageId": {
+				"id": 1,
+				"name": "Inglés",
+				"description": "Inglés",
+				"flagUrl": "https://estaffing.s3.amazonaws.com/flags/ingles.png",
+				"localeIdentifier": "en_US"
+			},
+			"langLevelId": {
+				"id": 4,
+				"name": "B2",
+				"description": "Intermedio Avanzado:Soy capaz de comprender las ideas principales de textos complejos relacionados con mi campo de especialización, interactuar con fluidez y espontaneidad con hablantes nativos en el entorno laboral, y producir textos claros y detallados defendiendo mis puntos de vista de manera argumentada.",
+				"percentage": 60
+			}
+		}
+	],
+	"benefits": [
+		{
+			"catalogId": 1000020031,
+			"catalogItemId": 1003100008,
+			"valueItem": "Prestaciones de ley.",
+			"description": "Prestaciones de ley."
+		}
+	],
+	"profile": {
+		"id": 1910,
+		"name": "C++",
+		"clientId": 18,
+		"isPublic": true,
+		"createdAt": "2024-12-27 08:50:42",
+		"updatedAt": "2024-12-27 08:50:43"
+	},
+	"seniority": {
+		"catalogId": 1000030003,
+		"catalogItemId": 1000300003,
+		"valueItem": "Senior",
+		"description": "De 5 años o más"
+	},
+	"currency": {
+		"catalogId": 1000020055,
+		"catalogItemId": 1005500001,
+		"valueItem": "MXN",
+		"description": "Pesos Mexicanos (MXN)"
+	},
+	"createdBy": {
+		"email": "margarito.velazquez@mystratis.com",
+		"firstName": "Margarito",
+		"lastName": "Velázquez Escobar",
+		"id": 40,
+		"clientName": "QA-Talentos aspirantes"
+	},
+	"positionOwner": {
+		"email": "margarito.velazquez@mystratis.com",
+		"firstName": "Margarito",
+		"lastName": "Velázquez Escobar",
+		"id": 40,
+		"disabled": false,
+		"clientName": "QA-Talentos aspirantes"
+	},
+	"numOfPositions": 1
+}

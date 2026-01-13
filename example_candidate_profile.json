@@ -1,0 +1,62 @@
+{
+	"id": 1,
+	"profileDescription": "Experienced Java backend developer with microservices and cloud deployment experience.",
+	"regions": [
+		{
+			"state": "Estado de Mexico",
+			"city": [
+				"San Francisco",
+				"Los Angeles"
+			]
+		}
+	],
+	"salaryRanges": [
+		{
+			"catalogItemId": 1000069001,
+			"valueItem": "$0 - $9999"
+		}
+	],
+	"experienceAreas": [
+		{
+			"catalogItemId": 1005200001,
+			"valueItem": "Tecnología"
+		}
+	],
+	"languages": [
+		{
+			"language": {
+				"id": 1,
+				"name": "English",
+				"description": "English language",
+				"flagUrl": "https://example.com/flags/en.png",
+				"localeIdentifier": "en"
+			},
+			"level": {
+				"id": 2,
+				"name": "Intermediate",
+				"description": "Intermediate",
+				"descriptionLarge": "Intermediate proficiency",
+				"percentage": 50
+			}
+		}
+	],
+	"academicLevels": [
+		{
+			"catalogItemId": 1001900003,
+			"valueItem": "Licenciatura"
+		}
+	],
+	"working": true,
+	"hiringTypes": [
+		{
+			"catalogItemId": 1001700002,
+			"valueItem": "Medio Tiempo"
+		}
+	],
+	"updatedAt": {
+		"catalogItemId": 1000070007,
+		"valueItem": "Hace 6 meses"
+	},
+	"createdBy": 123,
+	"modifiedBy": 456
+}

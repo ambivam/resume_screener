@@ -5,13 +5,18 @@ A comprehensive AI-powered resume screening application built with Python, featu
 ## 🚀 Features
 
 - **AI-Powered Screening**: Uses GPT-4 for intelligent resume analysis and scoring
+- **Bidirectional Matching**: Three screening modes for comprehensive analysis
+  - **Job Vacancy Based**: Screen resumes against detailed job requirements from JSON
+  - **Candidate Profile Based**: Analyze resume-profile consistency and alignment
+  - **Traditional Criteria**: Custom screening criteria for flexible evaluation
 - **LangGraph Workflow**: Advanced workflow management for resume processing
 - **Multi-Format Support**: Supports PDF, DOCX, and TXT resume formats
-- **MySQL Database**: Persistent storage for resumes, criteria, and results
+- **MySQL Database**: Persistent storage for resumes, criteria, results, vacancies, and profiles
 - **Interactive UI**: Modern Streamlit interface with real-time analytics
 - **Batch Processing**: Screen multiple resumes simultaneously
 - **Folder Upload**: Upload all resume files from a folder at once
-- **Customizable Criteria**: Flexible screening criteria for different roles
+- **JSON Data Support**: Import job vacancies and candidate profiles from comprehensive JSON structures
+- **Database Utilities**: Built-in tools for database management and health checks
 - **Detailed Analytics**: Comprehensive visualizations and reporting
 - **Export Functionality**: Export results to CSV and other formats
 
@@ -77,6 +82,20 @@ A comprehensive AI-powered resume screening application built with Python, featu
    DB_NAME=resume_screener
    ```
 
+6. **Initialize database**
+   - Test database connection and create tables:
+   ```bash
+   python db_utils.py --full-check
+   ```
+   - Or create tables only:
+   ```bash
+   python db_utils.py --create-tables
+   ```
+   - Run database migrations (recommended):
+   ```bash
+   python migrations.py --run-migrations
+   ```
+
 ## 🚀 Usage
 
 1. **Start the application**
@@ -126,16 +145,22 @@ A comprehensive AI-powered resume screening application built with Python, featu
 
 - **`streamlit_app_simple.py`**: Main Streamlit application with UI components
 - **`langgraph_workflow.py`**: LangGraph workflow for AI processing
+- **`simple_workflow.py`**: Simplified AI workflow for resume screening
 - **`ai_prompts.py`**: GPT-4 prompt templates for different scenarios
 - **`resume_parser.py`**: File parsing and text extraction
 - **`database.py`**: MySQL database models and operations
 - **`config.py`**: Configuration management
+- **`db_utils.py`**: Database management utilities and health checks
+- **`migrations.py`**: Database migration system with version control and rollback support
 
 ### Database Schema
 
 - **`resumes`**: Stores uploaded resume files and extracted text
 - **`screening_criteria`**: Stores different screening configurations
 - **`screening_results`**: Stores AI analysis results and scores
+- **`job_vacancies`**: Stores comprehensive job vacancy data from JSON
+- **`candidate_profiles`**: Stores candidate profile preferences and requirements
+- **`schema_migrations`**: Tracks applied database migrations for version control
 
 ### AI Workflow
 
@@ -163,7 +188,59 @@ Each resume is evaluated on:
 - **Education**: Educational background and qualifications
 - **Cultural Fit**: Alignment with company values and culture
 
-## 🔧 Customization
+## �️ Database Management
+
+### Migration System
+
+The application includes a comprehensive database migration system for managing schema changes:
+
+#### **Available Commands:**
+```bash
+# Run all pending migrations
+python migrations.py --run-migrations
+
+# Show migration status
+python migrations.py --status
+
+# Rollback a specific migration
+python migrations.py --rollback --version 001
+
+# Create new migration template
+python migrations.py --create-migration "Add new feature"
+```
+
+#### **Database Utilities:**
+```bash
+# Full database health check
+python db_utils.py --full-check
+
+# Test database connection
+python db_utils.py --test-connection
+
+# Create/update tables
+python db_utils.py --create-tables
+
+# Show database statistics
+python db_utils.py --stats
+
+# Validate schema
+python db_utils.py --validate-schema
+```
+
+#### **Migration Features:**
+- ✅ **Version Control**: Sequential migration versioning
+- ✅ **Rollback Support**: Safe rollback with automated SQL
+- ✅ **Status Tracking**: Monitor applied vs pending migrations
+- ✅ **Safety Checks**: Validates existing schema before changes
+- ✅ **Template Generation**: Creates new migration templates
+
+#### **Schema Updates:**
+When updating the database schema:
+1. Run `python migrations.py --status` to check current state
+2. Apply pending migrations with `python migrations.py --run-migrations`
+3. Verify with `python db_utils.py --validate-schema`
+
+## �🔧 Customization
 
 ### Adding New Role Templates
 
@@ -221,10 +298,13 @@ Modify `ai_prompts.py` to add specialized prompts for specific industries or rol
      ```
 
 2. **Database Connection Error**
-   - Verify MySQL is running
+   - Verify MySQL is running: `Get-Service -Name "*mysql*"`
    - Check database credentials in `.env`
    - Ensure database exists
    - Test connection: `mysql -u username -p -h localhost`
+   - Initialize database tables: `python db_utils.py --create-tables`
+   - Run database migrations: `python migrations.py --run-migrations`
+   - Run full database check: `python db_utils.py --full-check`
 
 3. **OpenAI API Error**
    - Verify API key is correct and has GPT-4 access

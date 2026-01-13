@@ -190,6 +190,185 @@ DIVERSITY AND INCLUSION GUIDELINES:
 """
 
     @staticmethod
+    def get_vacancy_based_analysis_prompt(resume_text: str, vacancy_json: dict):
+        """Generate comprehensive resume analysis prompt based on job vacancy JSON"""
+        base_prompt = ResumeScreeningPrompts.get_base_screening_prompt()
+        
+        # Extract vacancy details
+        job_title = vacancy_json.get('group', 'Not specified')
+        job_activities = vacancy_json.get('jobActivities', 'Not specified')
+        
+        # Extract required and preferred skills
+        skills = vacancy_json.get('skills', [])
+        required_skills = []
+        preferred_skills = []
+        
+        for skill in skills:
+            skill_name = skill.get('name', '')
+            if skill.get('isRequired', False):
+                required_skills.append(skill_name)
+            else:
+                preferred_skills.append(skill_name)
+        
+        # Extract languages
+        languages = vacancy_json.get('languages', [])
+        language_requirements = []
+        for lang in languages:
+            lang_info = lang.get('languageId', {})
+            level_info = lang.get('langLevelId', {})
+            language_requirements.append(f"{lang_info.get('name', 'Unknown')} - {level_info.get('name', 'Unknown level')}")
+        
+        # Extract seniority
+        seniority = vacancy_json.get('seniority', {})
+        seniority_level = seniority.get('valueItem', 'Not specified')
+        
+        # Extract additional software
+        additional_software = vacancy_json.get('aditionalSoftware', [])
+        software_requirements = [sw.get('name', '') for sw in additional_software]
+        
+        # Extract benefits
+        benefits = vacancy_json.get('benefits', [])
+        benefit_list = [benefit.get('valueItem', '') for benefit in benefits]
+        
+        analysis_prompt = f"""
+{base_prompt}
+
+JOB VACANCY DETAILS:
+Position: {job_title}
+Seniority Level: {seniority_level}
+Number of Positions: {vacancy_json.get('numOfPositions', 1)}
+
+JOB ACTIVITIES:
+{job_activities}
+
+REQUIRED SKILLS:
+{', '.join(required_skills) if required_skills else 'None specified'}
+
+PREFERRED SKILLS:
+{', '.join(preferred_skills) if preferred_skills else 'None specified'}
+
+LANGUAGE REQUIREMENTS:
+{', '.join(language_requirements) if language_requirements else 'None specified'}
+
+ADDITIONAL SOFTWARE:
+{', '.join(software_requirements) if software_requirements else 'None specified'}
+
+BENEFITS OFFERED:
+{', '.join(benefit_list) if benefit_list else 'None specified'}
+
+RESUME TO ANALYZE:
+{resume_text}
+
+ENHANCED EVALUATION CRITERIA:
+1. Match against specific job activities and responsibilities
+2. Evaluate technical skills alignment with required and preferred skills
+3. Assess language proficiency requirements
+4. Consider seniority level appropriateness
+5. Evaluate experience with additional software/tools mentioned
+6. Consider cultural fit based on benefits and company profile
+7. Assess overall candidate suitability for the specific vacancy
+
+Please provide a comprehensive analysis following the JSON format specified above, with special attention to how well the candidate matches the specific vacancy requirements.
+"""
+        return analysis_prompt
+
+    @staticmethod
+    def get_candidate_profile_matching_prompt(resume_text: str, candidate_profile_json: dict):
+        """Generate prompt for matching resume against candidate profile preferences"""
+        base_prompt = ResumeScreeningPrompts.get_base_screening_prompt()
+        
+        # Extract candidate profile details
+        profile_description = candidate_profile_json.get('profileDescription', 'Not specified')
+        working_status = candidate_profile_json.get('working', False)
+        
+        # Extract regions
+        regions = candidate_profile_json.get('regions', [])
+        location_preferences = []
+        for region in regions:
+            state = region.get('state', '')
+            cities = region.get('city', [])
+            if cities:
+                location_preferences.append(f"{state}: {', '.join(cities)}")
+            else:
+                location_preferences.append(state)
+        
+        # Extract salary ranges
+        salary_ranges = candidate_profile_json.get('salaryRanges', [])
+        salary_expectations = [sr.get('valueItem', '') for sr in salary_ranges]
+        
+        # Extract experience areas
+        experience_areas = candidate_profile_json.get('experienceAreas', [])
+        preferred_industries = [ea.get('valueItem', '') for ea in experience_areas]
+        
+        # Extract languages
+        languages = candidate_profile_json.get('languages', [])
+        language_skills = []
+        for lang in languages:
+            lang_info = lang.get('language', {})
+            level_info = lang.get('level', {})
+            language_skills.append(f"{lang_info.get('name', 'Unknown')} - {level_info.get('name', 'Unknown level')}")
+        
+        # Extract academic levels
+        academic_levels = candidate_profile_json.get('academicLevels', [])
+        education_levels = [al.get('valueItem', '') for al in academic_levels]
+        
+        # Extract hiring types
+        hiring_types = candidate_profile_json.get('hiringTypes', [])
+        employment_preferences = [ht.get('valueItem', '') for ht in hiring_types]
+        
+        matching_prompt = f"""
+{base_prompt}
+
+CANDIDATE PROFILE MATCHING ANALYSIS:
+You are analyzing how well a resume matches against a candidate's stated preferences and profile.
+This is REVERSE MATCHING - evaluating if the candidate (resume) aligns with their own stated preferences.
+
+CANDIDATE PROFILE DETAILS:
+Profile Description: {profile_description}
+Currently Working: {working_status}
+
+LOCATION PREFERENCES:
+{', '.join(location_preferences) if location_preferences else 'No specific location preferences'}
+
+SALARY EXPECTATIONS:
+{', '.join(salary_expectations) if salary_expectations else 'No salary expectations specified'}
+
+PREFERRED INDUSTRIES/EXPERIENCE AREAS:
+{', '.join(preferred_industries) if preferred_industries else 'No specific industry preferences'}
+
+LANGUAGE CAPABILITIES:
+{', '.join(language_skills) if language_skills else 'No language requirements specified'}
+
+EDUCATION LEVEL PREFERENCES:
+{', '.join(education_levels) if education_levels else 'No education level specified'}
+
+EMPLOYMENT TYPE PREFERENCES:
+{', '.join(employment_preferences) if employment_preferences else 'No employment type preferences'}
+
+RESUME TO ANALYZE:
+{resume_text}
+
+PROFILE MATCHING EVALUATION CRITERIA:
+1. Does the resume align with the candidate's stated profile description?
+2. Does the experience match the preferred industries/areas?
+3. Do the language skills in the resume match the candidate's language capabilities?
+4. Does the education level align with stated academic preferences?
+5. Is the candidate's experience consistent with their employment type preferences?
+6. Overall coherence between the resume and the candidate's stated preferences
+7. Identify any inconsistencies or gaps between profile and actual resume
+
+SPECIAL FOCUS AREAS:
+- Consistency between stated preferences and actual experience
+- Alignment of skills with preferred industry areas
+- Language proficiency matching
+- Career progression consistency with stated goals
+- Geographic alignment (if location-specific experience is mentioned)
+
+Please provide a comprehensive analysis following the JSON format specified above, focusing on how well the resume matches the candidate's own stated profile and preferences.
+"""
+        return matching_prompt
+
+    @staticmethod
     def get_resume_analysis_prompt(resume_text: str, criteria: dict):
         """Complete prompt for resume analysis"""
         # Determine the best prompt based on criteria
