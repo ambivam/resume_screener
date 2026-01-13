@@ -322,7 +322,7 @@ def upload_resumes_page():
     
     # Process files if any are available
     if files_to_process:
-        if st.button("🚀 Process Files", type="primary", use_container_width=True):
+        if st.button("🚀 Process Files", type="primary", width="stretch"):
             st.subheader("📋 Processing Files")
             
             progress_bar = st.progress(0)
@@ -384,7 +384,7 @@ def upload_resumes_page():
                 st.subheader("📊 Processing Summary")
                 st.dataframe(
                     df[['filename', 'word_count', 'file_type', 'upload_date', 'source']],
-                    use_container_width=True
+                    width="stretch"
                 )
                 
                 # Show additional confirmation
@@ -435,7 +435,7 @@ def upload_resumes_page():
                 
                 col1, col2 = st.columns(2)
                 with col1:
-                    if st.button("🗑️ Confirm Delete", type="primary", use_container_width=True):
+                    if st.button("🗑️ Confirm Delete", type="primary", width="stretch"):
                         # Get resume IDs to delete
                         resume_ids_to_delete = [resume_options[key]['id'] for key in selected_for_deletion]
                         
@@ -451,7 +451,7 @@ def upload_resumes_page():
                             st.error(f"❌ {message}")
                 
                 with col2:
-                    if st.button("❌ Cancel", use_container_width=True):
+                    if st.button("❌ Cancel", width="stretch"):
                         st.rerun()
         
         # Display resumes table
@@ -461,7 +461,7 @@ def upload_resumes_page():
         
         st.dataframe(
             df[display_columns],
-            use_container_width=True
+            width="stretch"
         )
         
         # Quick delete individual resumes
@@ -513,7 +513,7 @@ def set_criteria_page():
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        if st.button("🖥️ Software Engineer", use_container_width=True):
+        if st.button("🖥️ Software Engineer", width="stretch"):
             st.session_state.current_criteria = {
                 "job_title": "Software Engineer",
                 "required_skills": ["Python", "JavaScript", "SQL"],
@@ -523,7 +523,7 @@ def set_criteria_page():
             }
     
     with col2:
-        if st.button("👔 Project Manager", use_container_width=True):
+        if st.button("👔 Project Manager", width="stretch"):
             st.session_state.current_criteria = {
                 "job_title": "Project Manager",
                 "required_skills": ["Project Management", "Agile", "Scrum"],
@@ -533,7 +533,7 @@ def set_criteria_page():
             }
     
     with col3:
-        if st.button("💼 Sales Representative", use_container_width=True):
+        if st.button("💼 Sales Representative", width="stretch"):
             st.session_state.current_criteria = {
                 "job_title": "Sales Representative",
                 "required_skills": ["Sales", "CRM", "Negotiation"],
@@ -574,7 +574,7 @@ def set_criteria_page():
                                           value="\n".join(st.session_state.current_criteria.get("preferred_skills", [])))
         
         # Submit button
-        submitted = st.form_submit_button("💾 Save Criteria", use_container_width=True)
+        submitted = st.form_submit_button("💾 Save Criteria", width="stretch")
         
         if submitted:
             if not job_title:
@@ -699,7 +699,7 @@ def screen_resumes_page():
                 
                 if selected_vacancy.get('job_activities'):
                     st.markdown("**Job Activities:**")
-                    st.text_area("", value=selected_vacancy['job_activities'], height=100, disabled=True)
+                    st.text_area("Job Activities", value=selected_vacancy['job_activities'], height=100, disabled=True, label_visibility="collapsed")
     
     elif screening_method == "👤 Candidate Profile Based":
         # Initialize candidate profiles if not present
@@ -757,7 +757,7 @@ def screen_resumes_page():
                 
                 if selected_profile.get('profile_description'):
                     st.markdown("**Profile Description:**")
-                    st.text_area("", value=selected_profile['profile_description'], height=100, disabled=True)
+                    st.text_area("Profile Description", value=selected_profile['profile_description'], height=100, disabled=True, label_visibility="collapsed")
     
     else:  # Traditional Criteria
         if not st.session_state.current_criteria:
@@ -796,7 +796,7 @@ def screen_resumes_page():
             st.success(f"🎯 Ready to screen with traditional criteria")
         
         # Start screening
-        if st.button("🚀 Start Screening", type="primary", use_container_width=True):
+        if st.button("🚀 Start Screening", type="primary", width="stretch"):
             
             # Initialize database tables
             try:
@@ -1070,7 +1070,7 @@ def view_results_page():
             'Education': '{:.1f}',
             'Cultural Fit': '{:.1f}'
         }),
-        use_container_width=True
+        width="stretch"
     )
     
     # Detailed analysis for selected resume
@@ -1312,7 +1312,7 @@ Example:
                 # Job activities
                 if selected_vacancy.get('job_activities'):
                     st.markdown("**Job Activities:**")
-                    st.text_area("", value=selected_vacancy['job_activities'], height=150, disabled=True)
+                    st.text_area("Job Activities", value=selected_vacancy['job_activities'], height=150, disabled=True, label_visibility="collapsed")
     
     with tab3:
         st.subheader("🔧 Manage Job Vacancies")
@@ -1534,7 +1534,7 @@ Example:
                 # Profile description
                 if selected_profile.get('profile_description'):
                     st.markdown("**Profile Description:**")
-                    st.text_area("", value=selected_profile['profile_description'], height=150, disabled=True)
+                    st.text_area("Profile Description", value=selected_profile['profile_description'], height=150, disabled=True, label_visibility="collapsed")
                 
                 # Languages
                 if selected_profile.get('languages'):

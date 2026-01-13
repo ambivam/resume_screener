@@ -182,6 +182,20 @@ MIGRATIONS = [
         """,
         "rollback_sql": "DROP TABLE IF EXISTS candidate_profiles",
         "check_function": lambda conn: check_table_exists(conn, 'candidate_profiles')
+    },
+    {
+        "version": "004",
+        "name": "Fix criteria_id column constraint",
+        "description": "Allow NULL values for criteria_id to support vacancy-based and profile-based screening",
+        "sql": """
+            ALTER TABLE screening_results 
+            MODIFY COLUMN criteria_id INT NULL
+        """,
+        "rollback_sql": """
+            ALTER TABLE screening_results 
+            MODIFY COLUMN criteria_id INT NOT NULL
+        """,
+        "check_function": lambda conn: check_column_nullable(conn, 'screening_results', 'criteria_id')
     }
 ]
 
@@ -199,6 +213,17 @@ def check_columns_exist(conn, table_name, column_names):
         result = conn.execute(text(f"DESCRIBE {table_name}"))
         existing_columns = [row[0] for row in result.fetchall()]
         return all(col in existing_columns for col in column_names)
+    except:
+        return False
+
+def check_column_nullable(conn, table_name, column_name):
+    """Check if a column allows NULL values"""
+    try:
+        result = conn.execute(text(f"DESCRIBE {table_name}"))
+        for row in result.fetchall():
+            if row[0] == column_name:
+                return row[2] == 'YES'  # NULL column is at index 2
+        return False
     except:
         return False
 

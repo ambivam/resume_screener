@@ -306,28 +306,43 @@ Modify `ai_prompts.py` to add specialized prompts for specific industries or rol
    - Run database migrations: `python migrations.py --run-migrations`
    - Run full database check: `python db_utils.py --full-check`
 
-3. **OpenAI API Error**
+3. **Database Schema Issues**
+   - **Column constraint errors** (e.g., "Column 'criteria_id' cannot be null"):
+     ```bash
+     python migrations.py --run-migrations
+     ```
+   - **Missing columns or tables**:
+     ```bash
+     python db_utils.py --create-tables
+     python migrations.py --run-migrations
+     ```
+   - **Check migration status**:
+     ```bash
+     python migrations.py --status
+     ```
+
+4. **OpenAI API Error**
    - Verify API key is correct and has GPT-4 access
    - Check API quota and billing status
    - Test API key: `curl -H "Authorization: Bearer YOUR_API_KEY" https://api.openai.com/v1/models`
 
-4. **File Upload Issues**
+5. **File Upload Issues**
    - Check file format (PDF, DOCX, TXT only)
    - Verify file size is under 10MB
    - Ensure files are not corrupted
    - Check file permissions
 
-5. **Import Errors**
+6. **Import Errors**
    - Activate virtual environment: `venv\Scripts\activate`
    - Install all requirements with compatible versions
    - Check Python version compatibility (3.8+ recommended, 3.13 may need special handling)
 
-6. **Streamlit Issues**
+7. **Streamlit Issues**
    - Clear Streamlit cache: `streamlit cache clear`
    - Check port availability (default 8501)
    - Run with specific port: `streamlit run streamlit_app_simple.py --server.port 8502`
 
-7. **Data Consistency Issues**
+8. **Data Consistency Issues**
    - **Problem**: Deleted resumes still appear in results
    - **Cause**: Stale session state data
    - **Solution**: Click "🗑️ Clear Cache" button in View Results page
